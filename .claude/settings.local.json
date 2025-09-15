@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(./pai/pai.sh:*)",
+      "Bash(./pai.sh:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

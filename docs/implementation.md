@@ -1,5 +1,14 @@
 # Implementation Phases for Personal AI Infrastructure
 
+## System Philosophy
+
+- **System Over Models**: The orchestration and structure matter more than model intelligence
+- **Text as Universal Interface**: All interactions and data are text/markdown-based
+- **Unix Philosophy**: Build modular tools that do one thing well and can be chained together
+- **Unified Context Management**: Single source of truth for all system knowledge
+
+## Implementation Roadmap
+
 Follow these phases to stand up and extend the Personal AI Infrastructure
 (PAI) while protecting critical hygiene tasks. Move through the phases in
 order and advance only after your work meets the exit criteria.
@@ -39,8 +48,31 @@ order and advance only after your work meets the exit criteria.
   \- pai.sh              # Command-line interface
   ```
 
-- Populate `config.json` with Codex CLI defaults (model, sandbox policy,
-  profile). Leave any optional secrets as placeholders (`"replace-me"`).
+- Populate `config.json` with Codex CLI defaults:
+
+  ```json
+  {
+    "codex": {
+      "bin": "codex",
+      "model": "gpt-5-codex",
+      "approval": "never",
+      "sandbox": "workspace-write",
+      "profile": null
+    },
+    "tools": {
+      "enabled": ["search", "create_image", "analyze"],
+      "allow_custom": true,
+      "timeout_seconds": 30
+    },
+    "memory": {
+      "max_entries": 1000,
+      "auto_summarize_after": 100,
+      "retention_days": 90
+    }
+  }
+  ```
+
+  Leave any optional secrets as placeholders (`"replace-me"`).
 - Record any machine-specific setup dependencies in `docs/steps.md` so
   future agents can reproduce them.
 
@@ -65,9 +97,35 @@ order and advance only after your work meets the exit criteria.
 
 ### Phase 2 Tasks
 
-- Draft `~/pai/context.md` in second-person form. Preserve the "System Role",
-  "Core Capabilities", and "Operating Principles" sections from the reference
-  and align them with the tools you plan to ship in Phase 3.
+- Draft `~/pai/context.md` in second-person form:
+
+  ```markdown
+  # Personal AI Infrastructure Context
+
+  ## System Role
+  You are PAI, a personal AI infrastructure system powered by GPT-5.
+  Your purpose is to serve as an intelligent orchestration layer for personal productivity and knowledge management.
+
+  ## Core Capabilities
+  - Execute tools from ~/pai/tools/ directory
+  - Maintain project context in ~/pai/projects/
+  - Track important information in ~/pai/memory.md
+  - Chain multiple operations to complete complex tasks
+
+  ## Operating Principles
+  1. Always check for active project context before responding
+  2. Update memory.md with significant learnings or decisions
+  3. Use tools when actions are needed beyond conversation
+  4. Maintain markdown formatting for all outputs
+
+  ## System State
+  - Timestamp: <!-- auto:timestamp -->
+  - Active Project: <!-- auto:project -->
+  - Last Memory Update: <!-- auto:memory -->
+
+  ## Tool Registry
+  [Auto-populated from ~/pai/tools/]
+  ```
 - Add a "System State" block that references auto-updated tokens (timestamp,
   active project, last memory update). Mark each token with a placeholder such
   as `<!-- auto:timestamp -->` so automation can discover it.
@@ -137,17 +195,87 @@ order and advance only after your work meets the exit criteria.
 
 ### Phase 4 Tasks
 
-- Implement `~/pai/server.py` with a `PAIClient` class that shells out to the
-  Codex CLI (`codex exec --json ...`) for chat and tool invocations while still
-  exposing `chat`, `run_tool`, and `load_context` methods. Ensure logging is
-  structured (`logging.getLogger(__name__)`) and captures the Codex command
-  used.
+- Implement `~/pai/server.py` with a `PAIClient` class:
+
+  ```python
+  """Bridge between local state and the Codex CLI."""
+
+  import json
+  import logging
+  import os
+  import shlex
+  import subprocess
+  from pathlib import Path
+  from typing import Any, Dict, List
+
+  LOGGER = logging.getLogger(__name__)
+
+  class PAIClient:
+      def __init__(self, config_path: Path) -> None:
+          self.config = json.loads(config_path.read_text())
+          codex_cfg = self.config.get("codex", {})
+          self.codex_bin = os.getenv("CODEX_BIN", codex_cfg.get("bin", "codex"))
+          self.approval = codex_cfg.get("approval", "never")
+          self.sandbox = codex_cfg.get("sandbox", "workspace-write")
+          self.model = codex_cfg.get("model", "gpt-5-codex")
+          self.profile = codex_cfg.get("profile")
+          self.base_args = self._build_base_args()
+
+      def _build_base_args(self) -> List[str]:
+          args = [self.codex_bin, "-a", self.approval, "-s", self.sandbox]
+          if self.profile:
+              args.extend(["-p", self.profile])
+          if self.model:
+              args.extend(["-m", self.model])
+          return args + ["exec", "--json"]
+
+      def chat(self, prompt: str) -> Dict[str, Any]:
+          """Send a chat prompt through Codex and parse the JSONL response."""
+          command = self.base_args + [prompt]
+          LOGGER.debug("Running Codex command: %s", shlex.join(command))
+          result = subprocess.run(
+              command,
+              check=False,
+              capture_output=True,
+              text=True,
+          )
+          if result.returncode != 0:
+              raise RuntimeError(f"Codex CLI failed: {result.stderr}")
+
+          messages: List[Dict[str, Any]] = []
+          for line in result.stdout.splitlines():
+              messages.append(json.loads(line))
+
+          return {
+              "raw": messages,
+              "last": next(
+                  (entry["msg"]["message"] for entry in reversed(messages)
+                   if entry.get("msg", {}).get("type") == "agent_message"),
+                  None,
+              ),
+          }
+
+      def run_tool(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+          prompt = f"Run tool {tool_name} with parameters: {json.dumps(parameters)}"
+          return self.chat(prompt)
+  ```
 - Inject debug logging from the troubleshooting section
   (`logger.debug("Executing tool: %s", tool_name)`) so the debug pathway is
   not an afterthought.
-- Create `pai.sh` as a POSIX-compliant wrapper that forwards commands to
-  `PAIClient`, sets `PAI_HOME`, and allows overriding the Codex binary via
-  `CODEX_BIN`. Document usage (`./pai.sh chat "Summarize my tasks"`).
+- Create `pai.sh` as a POSIX-compliant wrapper:
+
+  ```bash
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+  export PAI_HOME="${PAI_HOME:-${SCRIPT_DIR}}"
+  export CODEX_BIN="${CODEX_BIN:-codex}"
+
+  python3 "${SCRIPT_DIR}/server.py" "$@"
+  ```
+
+  Document usage (`./pai.sh chat "Summarize my tasks"`).
 - Verify the CLI by running `CODEX_BIN=codex ./pai.sh chat "ping"` and confirm
   you receive a well-formed JSON response or a stubbed placeholder during
   development.
@@ -251,3 +379,201 @@ order and advance only after your work meets the exit criteria.
 
 Following these phases keeps the Personal AI Infrastructure iterable while
 maintaining the rigorous documentation standards downstream agents rely on.
+
+## Usage Examples
+
+### Daily Workflow
+
+```bash
+# Start your day
+CODEX_BIN=codex ./pai/pai.sh chat "What's my focus today based on active projects?"
+
+# Set project context
+CODEX_BIN=codex ./pai/pai.sh chat "Switch the active project to website-redesign"
+
+# Execute complex task
+CODEX_BIN=codex ./pai/pai.sh chat "Analyze the security of our deployment and create a report"
+
+# Quick tool execution
+CODEX_BIN=codex ./pai/pai.sh run-tool search --params '{"query":"GPT-5 best practices"}'
+```
+
+### Creating Custom Tools
+
+```markdown
+# ~/pai/tools/custom/deploy.md
+
+# Tool: deploy
+
+## Description
+Deploy current project to production
+
+## Parameters
+- environment: string - "staging" | "production"
+- version: string - Version tag
+
+## Implementation
+Custom Python script at ~/pai/tools/custom/deploy.py
+```
+
+### Python Integration
+
+```python
+import json
+import os
+import subprocess
+from pathlib import Path
+
+class PAIClient:
+    def __init__(self, pai_home: Path):
+        self.pai_home = pai_home
+        self.codex_bin = os.getenv("CODEX_BIN", "codex")
+
+    def _exec(self, prompt: str) -> dict:
+        command = [
+            self.codex_bin,
+            "-a",
+            "never",
+            "-s",
+            "workspace-write",
+            "exec",
+            "--json",
+            prompt,
+        ]
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        events = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+        return events
+
+    def chat(self, message: str) -> str:
+        events = self._exec(message)
+        for entry in reversed(events):
+            msg = entry.get("msg")
+            if msg and msg.get("type") == "agent_message":
+                return msg["message"]["content"]
+        raise RuntimeError("Codex did not return a chat response")
+
+pai = PAIClient(Path.home() / "pai")
+print(pai.chat("Summarize my recent code changes"))
+```
+
+## Advanced Features
+
+### Scheduled Tasks
+
+```python
+# ~/pai/scheduler.py
+import schedule
+import time
+from pai_client import PAIClient
+
+pai = PAIClient()
+
+def morning_briefing():
+    pai.chat("Generate my morning briefing with calendar, weather, and news")
+
+def project_summary():
+    pai.chat("Summarize progress on all active projects")
+
+schedule.every().day.at("08:00").do(morning_briefing)
+schedule.every().friday.at("16:00").do(project_summary)
+
+while True:
+    schedule.run_pending()
+    time.sleep(60)
+```
+
+### Voice Interface
+
+```python
+# ~/pai/voice.py
+import speech_recognition as sr
+import pyttsx3
+from pai_client import PAIClient
+
+class VoicePAI:
+    def __init__(self):
+        self.pai = PAIClient()
+        self.recognizer = sr.Recognizer()
+        self.engine = pyttsx3.init()
+
+    def listen(self):
+        with sr.Microphone() as source:
+            audio = self.recognizer.listen(source)
+            text = self.recognizer.recognize_google(audio)
+            return text
+
+    def speak(self, text):
+        self.engine.say(text)
+        self.engine.runAndWait()
+
+    def interact(self):
+        command = self.listen()
+        response = self.pai.chat(command)
+        self.speak(response)
+```
+
+## System Maintenance
+
+### Backup Strategy
+
+```bash
+#!/bin/bash
+# ~/pai/backup.sh
+
+# Daily backup of critical files
+tar -czf ~/backups/pai-$(date +%Y%m%d).tar.gz \
+    ~/pai/memory.md \
+    ~/pai/projects/ \
+    ~/pai/tools/custom/
+
+# Keep last 30 days
+find ~/backups -name "pai-*.tar.gz" -mtime +30 -delete
+```
+
+### Memory Optimization
+
+```python
+# ~/pai/optimize_memory.py
+
+def summarize_old_memories():
+    """Summarize memories older than 30 days"""
+    # Load memory.md
+    # Group by week
+    # Generate summaries using GPT-5
+    # Archive originals
+    # Update memory.md with summaries
+```
+
+## Best Practices
+
+1. **Keep tools focused**: Each tool should do exactly one thing
+2. **Document everything**: Clear markdown documentation for all components
+3. **Version control**: Track changes to tools and context
+4. **Regular cleanup**: Summarize old memories, archive completed projects
+5. **Test incrementally**: Verify each component before building on it
+6. **Monitor usage**: Track which tools and patterns are most valuable
+7. **Iterate based on needs**: Add tools and features as patterns emerge
+
+## Troubleshooting
+
+### Common Issues
+
+**Context not loading**: Check file paths and permissions
+**Tools not found**: Verify markdown format and server parsing
+**Memory growing too large**: Implement summarization routine
+**Codex CLI errors**: Re-run `codex login`, confirm sandbox flags, or inspect stderr for command failures
+
+### Debug Mode
+
+```python
+# Add to server.py
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+# Log all tool executions
+logger.debug(f"Executing tool: {tool_name} with {parameters}")
+```
+
+This system provides a powerful yet simple personal AI infrastructure that can be extended and customized based on your specific needs.
