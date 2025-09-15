@@ -6,15 +6,12 @@ import argparse
 import json
 import logging
 import os
+import shlex
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
-
-try:
-    import requests
-except ImportError as exc:  # pragma: no cover - runtime guard
-    raise SystemExit("The 'requests' package is required. Install it with 'pip install requests'.") from exc
+from typing import Any, Dict, List, Optional
 
 LOGGER = logging.getLogger(__name__)
 _LOG_LEVEL = logging.DEBUG if os.getenv("PAI_DEBUG") else logging.INFO
@@ -23,7 +20,6 @@ logging.basicConfig(level=_LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s
 PAI_HOME = Path(os.getenv("PAI_HOME", Path(__file__).resolve().parent))
 DEFAULT_CONTEXT_PATH = PAI_HOME / "context.md"
 DEFAULT_CONFIG_PATH = PAI_HOME / "config.json"
-DEFAULT_MEMORY_PATH = PAI_HOME / "memory.md"
 
 
 @dataclass
@@ -42,18 +38,23 @@ class ConfigurationError(RuntimeError):
 
 
 class PAIClient:
-    """Client responsible for orchestrating tool and chat calls."""
+    """Bridge between local state and the Codex CLI."""
 
     def __init__(
         self,
         config_path: Path = DEFAULT_CONFIG_PATH,
         context_path: Path = DEFAULT_CONTEXT_PATH,
-        session: Optional[requests.Session] = None,
     ) -> None:
         self.config_path = config_path
         self.context_path = context_path
-        self.session = session or requests.Session()
         self.config = self._load_config()
+        self.codex_cfg = self.config.get("codex", {})
+        self.codex_bin = os.getenv("CODEX_BIN", self.codex_cfg.get("bin", "codex"))
+        self.approval = os.getenv("PAI_APPROVAL", self.codex_cfg.get("approval", "never"))
+        self.sandbox = os.getenv("PAI_SANDBOX", self.codex_cfg.get("sandbox", "workspace-write"))
+        self.model = os.getenv("PAI_MODEL", self.codex_cfg.get("model", "gpt-5-codex"))
+        self.profile = os.getenv("PAI_PROFILE", self.codex_cfg.get("profile"))
+        self.base_args = self._build_base_args()
 
     def _load_config(self) -> Dict[str, Any]:
         if not self.config_path.exists():
@@ -62,6 +63,18 @@ class PAIClient:
         with self.config_path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
 
+    def _build_base_args(self) -> List[str]:
+        args = [self.codex_bin]
+        if self.approval:
+            args.extend(["-a", self.approval])
+        if self.sandbox:
+            args.extend(["-s", self.sandbox])
+        if self.profile:
+            args.extend(["-p", self.profile])
+        if self.model:
+            args.extend(["-m", self.model])
+        return args + ["exec", "--json"]
+
     def load_context(self) -> str:
         if not self.context_path.exists():
             LOGGER.error("Context file missing at %s", self.context_path)
@@ -69,100 +82,120 @@ class PAIClient:
         return self.context_path.read_text(encoding="utf-8")
 
     def chat(self, prompt: str, project: Optional[str] = None) -> Dict[str, Any]:
-        LOGGER.debug("Executing chat with project=%s", project)
-        api_key = self.config.get("openai_api_key", "")
-        model = self.config.get("default_model", "gpt-5-preview")
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": self._system_prompt(project)},
-                {"role": "user", "content": prompt},
-            ],
-        }
-        if not api_key or api_key == "replace-me":
-            LOGGER.info("API key missing or placeholder; returning stub response")
-            return {
-                "model": model,
-                "choices": [
-                    {
-                        "message": {
-                            "role": "assistant",
-                            "content": "Stubbed response: configure openai_api_key to reach the API.",
-                        }
-                    }
-                ],
-            }
-        return self._post("/chat/completions", payload)
+        system_prompt = self._system_prompt(project)
+        payload = f"{system_prompt}\n\nUser: {prompt}"
+        LOGGER.debug("Executing chat prompt via Codex CLI")
+        result = self._run_codex(payload)
+        return result
 
     def run_tool(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
         LOGGER.debug("Executing tool: %s", tool_name)
-        stub_handlers = {
-            "search": self._stub_search,
-            "create_image": self._stub_create_image,
-            "analyze": self._stub_analyze,
-        }
-        if tool_name in stub_handlers:
-            return stub_handlers[tool_name](parameters)
-        raise ValueError(f"Unknown tool: {tool_name}")
+        prompt = f"Run tool {tool_name} with parameters: {json.dumps(parameters)}"
+        return self._run_codex(prompt)
 
-    def _post(self, path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        base_url = self.config.get("base_url", "https://api.openai.com/v1")
-        api_key = self.config.get("openai_api_key")
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-        url = f"{base_url.rstrip('/')}{path}"
-        retries = int(self.config.get("max_retries", 3))
-        timeout = int(self.config.get("timeout_seconds", 60))
-        for attempt in range(1, retries + 1):
+    def _run_codex(self, prompt: str) -> Dict[str, Any]:
+        command = self.base_args + [prompt]
+        LOGGER.debug("Running Codex command: %s", shlex.join(command))
+        try:
+            result = subprocess.run(
+                command,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError as exc:
+            LOGGER.error("Codex CLI not found: %s", exc)
+            return self._stub_response("Codex CLI not installed; install @openai/codex", stderr=str(exc))
+
+        if result.returncode != 0:
+            stderr = result.stderr.strip()
+            LOGGER.error("Codex CLI exited with %s: %s", result.returncode, stderr)
+            return self._stub_response(
+                f"Codex CLI failed with exit code {result.returncode}; check stderr",
+                stdout=result.stdout,
+                stderr=result.stderr,
+            )
+
+        messages: List[Dict[str, Any]] = []
+        last_text: Optional[str] = None
+        error_message: Optional[str] = None
+        for line in result.stdout.splitlines():
+            candidate = line.strip()
+            if not candidate:
+                continue
             try:
-                response = self.session.post(url, headers=headers, json=payload, timeout=timeout)
-                response.raise_for_status()
-                return response.json()
-            except requests.RequestException as exc:
-                LOGGER.warning("Request attempt %s failed: %s", attempt, exc)
-                if attempt == retries:
-                    raise
-        raise RuntimeError("Request attempts exhausted")
+                event = json.loads(candidate)
+            except json.JSONDecodeError:
+                LOGGER.debug("Skipping non-JSON line from Codex: %s", candidate)
+                continue
+            messages.append(event)
+            message = event.get("msg", {})
+            if not isinstance(message, dict):
+                continue
+            msg_type = message.get("type")
+            if msg_type == "agent_message":
+                payload = message.get("message")
+                if isinstance(payload, dict):
+                    role = payload.get("role")
+                    content = payload.get("content")
+                    if role == "assistant" and isinstance(content, str):
+                        last_text = content
+                elif isinstance(payload, str):
+                    last_text = payload
+            elif msg_type in {"error", "stream_error"}:
+                text = message.get("message")
+                if isinstance(text, str):
+                    error_message = text
+
+        if not last_text:
+            LOGGER.debug("No assistant message found; using raw stdout")
+            last_text = error_message or result.stdout.strip() or "Codex CLI returned no assistant message."
+
+        data: Dict[str, Any] = {
+            "raw": messages,
+            "last": last_text,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "choices": [
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": last_text,
+                    }
+                }
+            ],
+        }
+        if error_message:
+            data["error"] = error_message
+        return data
+
+    def _stub_response(
+        self,
+        message: str,
+        stdout: Optional[str] = None,
+        stderr: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        LOGGER.info("Returning stub response: %s", message)
+        return {
+            "error": message,
+            "stdout": stdout or "",
+            "stderr": stderr or "",
+            "raw": [],
+            "last": message,
+            "choices": [
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": message,
+                    }
+                }
+            ],
+        }
 
     def _system_prompt(self, project: Optional[str]) -> str:
         context = self.load_context()
         header = "Active project: none" if not project else f"Active project: {project}"
         return f"{header}\n\n{context}"
-
-    def _stub_search(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        query = params.get("query", "")
-        max_results = int(params.get("max_results", 5))
-        return {
-            "provider": "stub-search",
-            "results": [
-                {
-                    "title": f"Result {idx + 1} for {query}",
-                    "snippet": "Replace with real search integration.",
-                    "url": f"https://example.com/{idx + 1}",
-                    "published_at": "1970-01-01T00:00:00Z",
-                }
-                for idx in range(max_results)
-            ],
-        }
-
-    def _stub_create_image(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        prompt = params.get("prompt", "")
-        size = params.get("size", "1024x1024")
-        return {
-            "image_url": f"https://images.example.com/mock/{size}",
-            "revised_prompt": prompt.strip() or "Describe the desired image.",
-            "expires_at": "1970-01-01T00:00:00Z",
-        }
-
-    def _stub_analyze(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        subject = params.get("subject", "")
-        return {
-            "analysis": {"summary": f"Analysis placeholder for {subject}."},
-            "recommendations": ["Configure live analysis pipeline."],
-            "sources": [],
-        }
 
 
 def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
@@ -185,7 +218,8 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
 
 def _cli_chat(client: PAIClient, args: argparse.Namespace) -> PAIResponse:
     data = client.chat(args.message, project=args.project)
-    return PAIResponse(ok=True, data=data)
+    ok = data.get("error") is None
+    return PAIResponse(ok=ok, data=data)
 
 
 def _cli_run_tool(client: PAIClient, args: argparse.Namespace) -> PAIResponse:
@@ -194,7 +228,8 @@ def _cli_run_tool(client: PAIClient, args: argparse.Namespace) -> PAIResponse:
     except json.JSONDecodeError as exc:
         raise ValueError(f"Invalid JSON for --params: {exc}") from exc
     data = client.run_tool(args.name, parameters)
-    return PAIResponse(ok=True, data=data)
+    ok = data.get("error") is None
+    return PAIResponse(ok=ok, data=data)
 
 
 def _cli_load_context(client: PAIClient, args: argparse.Namespace) -> PAIResponse:

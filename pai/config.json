@@ -1,8 +1,19 @@
 {
-  "openai_api_key": "replace-me",
-  "default_model": "gpt-5-preview",
-  "embedding_model": "text-embedding-3-large",
-  "timeout_seconds": 60,
-  "max_retries": 3,
-  "base_url": "https://api.openai.com/v1"
+  "codex": {
+    "bin": "codex",
+    "model": "gpt-5-codex",
+    "approval": "never",
+    "sandbox": "workspace-write",
+    "profile": null
+  },
+  "tools": {
+    "enabled": ["search", "create_image", "analyze"],
+    "allow_custom": true,
+    "timeout_seconds": 30
+  },
+  "memory": {
+    "max_entries": 1000,
+    "auto_summarize_after": 100,
+    "retention_days": 90
+  }
 }

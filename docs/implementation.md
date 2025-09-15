@@ -22,14 +22,14 @@ order and advance only after your work meets the exit criteria.
 
 ### Phase 1 Tasks
 
-- Create `~/pai/` and mirror the reference layout in a single shell session:
+- [x] Create `~/pai/` and mirror the reference layout in a single shell session:
 
   ```bash
   mkdir -p ~/pai/{tools/custom,projects}
   touch ~/pai/{context.md,memory.md,config.json,pai.sh}
   ```
 
-- Add the improved directory map to `context.md` so other agents inherit the
+- [x] Add the improved directory map to `context.md` so other agents inherit the
   canonical structure:
 
   ```markdown
@@ -48,7 +48,7 @@ order and advance only after your work meets the exit criteria.
   \- pai.sh              # Command-line interface
   ```
 
-- Populate `config.json` with Codex CLI defaults:
+- [x] Populate `config.json` with Codex CLI defaults:
 
   ```json
   {
@@ -73,20 +73,20 @@ order and advance only after your work meets the exit criteria.
   ```
 
   Leave any optional secrets as placeholders (`"replace-me"`).
-- Record any machine-specific setup dependencies in `docs/steps.md` so
+- [x] Record any machine-specific setup dependencies in `docs/steps.md` so
   future agents can reproduce them.
 
 ### Phase 1 Exit Criteria
 
-- `~/pai/` contains every placeholder file and directory
-- `docs/steps.md` references every non-obvious setup decision you made
+- [x] `~/pai/` contains every placeholder file and directory
+- [x] `docs/steps.md` references every non-obvious setup decision you made
 
 ### Phase 1 Verification
 
-- Run `ls ~/pai` and confirm the directory tree matches the map in
+- [x] Run `ls ~/pai` and confirm the directory tree matches the map in
   `context.md`
-- Open `docs/steps.md` and ensure your environment notes clearly describe any
-  extra packages, permissions, or shell changes you applied
+- [x] Open `docs/steps.md` and ensure your environment notes clearly describe
+  any extra packages, permissions, or shell changes you applied
 
 ## Phase 2 - Author Core System Context
 
@@ -97,7 +97,7 @@ order and advance only after your work meets the exit criteria.
 
 ### Phase 2 Tasks
 
-- Draft `~/pai/context.md` in second-person form:
+- [x] Draft `~/pai/context.md` in second-person form:
 
   ```markdown
   # Personal AI Infrastructure Context
@@ -126,26 +126,26 @@ order and advance only after your work meets the exit criteria.
   ## Tool Registry
   [Auto-populated from ~/pai/tools/]
   ```
-- Add a "System State" block that references auto-updated tokens (timestamp,
-  active project, last memory update). Mark each token with a placeholder such
-  as `<!-- auto:timestamp -->` so automation can discover it.
-- Append a "Tool Registry" section that lists every tool markdown file by
+- [x] Add a "System State" block that references auto-updated tokens
+  (timestamp, active project, last memory update). Mark each token with a
+  placeholder such as `<!-- auto:timestamp -->` so automation can discover it.
+- [x] Append a "Tool Registry" section that lists every tool markdown file by
   slug. Direct agents to regenerate this section by script instead of manual
   edits.
-- Validate formatting with `npx markdownlint "~/pai/context.md"` and address
-  all violations immediately.
+- [x] Validate formatting with `npx markdownlint "~/pai/context.md"` and
+  address all violations immediately.
 
 ### Phase 2 Exit Criteria
 
-- `context.md` passes lint checks
-- Placeholders clearly flag automation-managed fields
+- [x] `context.md` passes lint checks
+- [x] Placeholders clearly flag automation-managed fields
 
 ### Phase 2 Verification
 
-- Execute `npx markdownlint "~/pai/context.md"` and resolve every warning
-- Inspect the "System State" block to ensure each placeholder uses the
+- [x] Execute `npx markdownlint "~/pai/context.md"` and resolve every warning
+- [x] Inspect the "System State" block to ensure each placeholder uses the
   `<!-- auto:token -->` format so automation tooling can parse it reliably
-- Confirm the "Tool Registry" section references each markdown file in
+- [x] Confirm the "Tool Registry" section references each markdown file in
   `~/pai/tools/` by slug
 
 ## Phase 3 - Implement and Test Tool Definitions
@@ -159,31 +159,34 @@ order and advance only after your work meets the exit criteria.
 
 ### Phase 3 Tasks
 
-- For each core tool (`search`, `create_image`, `analyze`), create a markdown
-  file under `~/pai/tools/` with sections for Description, Parameters,
+- [x] For each core tool (`search`, `create_image`, `analyze`), create a
+  markdown file under `~/pai/tools/` with sections for Description, Parameters,
   Returns, Examples, and Verification.
-- Reword parameter tables so they describe constraints in plain language
+- [x] Reword parameter tables so they describe constraints in plain language
   (`max_results: integer >= 1, default 5`) to expose validation gaps that the
   original plan left implicit.
-- Introduce a "Verification" subsection showing how to exercise the tool via
-  the Codex CLI once Phase 4 is complete.
-- When you add new tools, update `docs/tool_registry.md` (create it if absent)
-  to summarize capabilities, expected latency, and safety considerations.
-- Run `npx markdownlint "~/pai/tools/*.md"` to verify formatting and correct
-  all failures before moving on.
+- [x] Introduce a "Verification" subsection showing how to exercise the tool
+  via the Codex CLI once Phase 4 is complete.
+- [x] When you add new tools, update `docs/tool_registry.md` (create it if
+  absent) to summarize capabilities, expected latency, and safety
+  considerations.
+- [x] Run `npx markdownlint "~/pai/tools/*.md"` to verify formatting and
+  correct all failures before moving on.
 
 ### Phase 3 Exit Criteria
 
-- Every tool markdown file documents inputs, outputs, and verification steps
-- Linting passes across the `tools/` directory
+- [x] Every tool markdown file documents inputs, outputs, and verification
+  steps
+- [x] Linting passes across the `tools/` directory
 
 ### Phase 3 Verification
 
-- Run `npx markdownlint "~/pai/tools/*.md"` and fix issues before proceeding
-- Cross-check each tool spec against the "Tool Registry" entry you added in
-  `docs/tool_registry.md` to guarantee consistency on parameters and safety
-- Walk through the Verification subsection of one tool and confirm the sample
-  command matches the Codex CLI workflow you expect to ship in Phase 4
+- [x] Run `npx markdownlint "~/pai/tools/*.md"` and fix issues before
+  proceeding
+- [x] Cross-check each tool spec against the "Tool Registry" entry you added
+  in `docs/tool_registry.md` to guarantee consistency on parameters and safety
+- [ ] Walk through the Verification subsection of one tool and confirm the
+  sample command matches the Codex CLI workflow you expect to ship in Phase 4
 
 ## Phase 4 - Build the Codex CLI Orchestration Surface
 
@@ -195,7 +198,7 @@ order and advance only after your work meets the exit criteria.
 
 ### Phase 4 Tasks
 
-- Implement `~/pai/server.py` with a `PAIClient` class:
+- [x] Implement `~/pai/server.py` with a `PAIClient` class:
 
   ```python
   """Bridge between local state and the Codex CLI."""
@@ -259,10 +262,12 @@ order and advance only after your work meets the exit criteria.
           prompt = f"Run tool {tool_name} with parameters: {json.dumps(parameters)}"
           return self.chat(prompt)
   ```
-- Inject debug logging from the troubleshooting section
+  The bridge now shells out to the Codex CLI (`codex exec --json`) and preserves
+  a stubbed fallback when the binary is unavailable during development.
+- [x] Inject debug logging from the troubleshooting section
   (`logger.debug("Executing tool: %s", tool_name)`) so the debug pathway is
   not an afterthought.
-- Create `pai.sh` as a POSIX-compliant wrapper:
+- [x] Create `pai.sh` as a POSIX-compliant wrapper:
 
   ```bash
   #!/usr/bin/env bash
@@ -274,28 +279,37 @@ order and advance only after your work meets the exit criteria.
 
   python3 "${SCRIPT_DIR}/server.py" "$@"
   ```
+  The wrapper now exports `CODEX_BIN` and honours any existing `PAI_HOME`
+  override before invoking Python.
 
-  Document usage (`./pai.sh chat "Summarize my tasks"`).
-- Verify the CLI by running `CODEX_BIN=codex ./pai.sh chat "ping"` and confirm
-  you receive a well-formed JSON response or a stubbed placeholder during
-  development.
-- Capture the verification transcript and store it under
+- [x] Redirect Codex rollouts inside the workspace when the sandbox blocks
+  writes to `~/.codex/sessions` (symlink the directory to `pai/codex-sessions/`
+  as documented in the smoke test runbook).
+- [x] Document usage (`./pai.sh chat "Summarize my tasks"`).
+- [x] Verify the CLI by running `CODEX_BIN=codex ./pai.sh chat "ping"` and
+  confirm you receive a well-formed JSON response or a stubbed placeholder
+  during development.
+- [x] Capture the verification transcript and store it under
   `docs/runbooks/server_smoke_test.md` for reproducibility.
 
 ### Phase 4 Exit Criteria
 
-- CLI and server agree on tool discovery paths and respond to a smoke-test
+- [x] CLI and server agree on tool discovery paths and respond to a smoke-test
   request
-- Debug logging toggles via an env var such as `PAI_DEBUG=1`
+- [x] Debug logging toggles via an env var such as `PAI_DEBUG=1`
 
 ### Phase 4 Verification
 
-- From the project root, run `CODEX_BIN=codex ./pai.sh chat "ping"` and capture
-  the response JSON (or stub) along with any logs
-- Store the transcript in `docs/runbooks/server_smoke_test.md` and describe
+- [x] From the project root, run `CODEX_BIN=codex ./pai.sh chat "ping"` and
+  capture the response JSON (or stub) along with any logs
+- [x] Store the transcript in `docs/runbooks/server_smoke_test.md` and describe
   the environment variables or mock configuration you used
-- Toggle `PAI_DEBUG=1 CODEX_BIN=codex ./pai.sh chat "ping"` and verify debug
-  statements log the executed Codex tool names without leaking secrets
+- [x] Toggle `PAI_DEBUG=1 CODEX_BIN=codex ./pai.sh chat "ping"` and verify
+  debug statements log the executed Codex tool names without leaking secrets
+
+You should see `ok: true` with an assistant response once Codex reaches its
+service. If the payload reports `ok: false` with a network error, follow the
+smoke-test runbook to confirm rollout permissions and connectivity.
 
 ## Phase 5 - Layer Advanced Interfaces
 
@@ -305,30 +319,30 @@ order and advance only after your work meets the exit criteria.
 
 ### Phase 5 Tasks
 
-- Implement `~/pai/scheduler.py` using the provided `schedule` pattern and
+- [x] Implement `~/pai/scheduler.py` using the provided `schedule` pattern and
   guard each job with try/except plus logging to prevent silent exits.
-- Build `~/pai/voice.py` with dependency checks so the script guides you if
+- [x] Build `~/pai/voice.py` with dependency checks so the script guides you if
   `speech_recognition` or `pyttsx3` are missing.
-- Document cron-style alternatives in `docs/runbooks/scheduling.md` for
+- [ ] Document cron-style alternatives in `docs/runbooks/scheduling.md` for
   environments where long-running daemons are discouraged.
-- Test `scheduler.py` by temporarily shortening intervals
+- [ ] Test `scheduler.py` by temporarily shortening intervals
   (`schedule.every(1).minutes`) and observing log output for at least two
   cycles before restoring production timings.
 
 ### Phase 5 Exit Criteria
 
-- Scheduler and voice scripts run without uncaught exceptions during local
+- [ ] Scheduler and voice scripts run without uncaught exceptions during local
   tests
-- Runbooks explain how to enable or disable these interfaces safely
+- [x] Runbooks explain how to enable or disable these interfaces safely
 
 ### Phase 5 Verification
 
-- Temporarily set `schedule.every(1).minutes` in `scheduler.py`, run the script
-  for two cycles, and review the log output under `~/pai/logs/`
-- Execute `python ~/pai/voice.py --check-deps` (or your equivalent flag) to
-  confirm the script reports missing packages with actionable guidance
-- Update `docs/runbooks/scheduling.md` with the log sample and instructions for
-  reverting the interval to the production cadence
+- [ ] Temporarily set `schedule.every(1).minutes` in `scheduler.py`, run the
+  script for two cycles, and review the log output under `~/pai/logs/`
+- [ ] Execute `python ~/pai/voice.py --check-deps` (or your equivalent flag)
+  to confirm the script reports missing packages with actionable guidance
+- [ ] Update `docs/runbooks/scheduling.md` with the log sample and
+  instructions for reverting the interval to the production cadence
 
 ## Phase 6 - Operational Maintenance and Continuous Improvement
 
@@ -338,43 +352,45 @@ order and advance only after your work meets the exit criteria.
 
 ### Phase 6 Tasks
 
-- Ship `~/pai/backup.sh` with executable permissions
+- [x] Ship `~/pai/backup.sh` with executable permissions
   (`chmod +x ~/pai/backup.sh`) and confirm it rotates archives using the `find`
   prune logic.
-- Build `~/pai/optimize_memory.py` around the provided pseudocode. Implement
-  weekly summarization routines and archive raw entries under
+- [x] Build `~/pai/optimize_memory.py` around the provided pseudocode.
+  Implement weekly summarization routines and archive raw entries under
   `~/pai/archive/memory/`.
-- Schedule the backup and optimization scripts via your preferred scheduler
-  (cron or systemd timer) and document the setup in
+- [ ] Schedule the backup and optimization scripts via your preferred
+  scheduler (cron or systemd timer) and document the setup in
   `docs/runbooks/maintenance.md`.
-- Review the "Best Practices" and "Troubleshooting" sections quarterly, and
-  update them whenever you add tooling, notice new failure modes, or adjust the
-  cleanup cadence.
+- [ ] Review the "Best Practices" and "Troubleshooting" sections quarterly,
+  and update them whenever you add tooling, notice new failure modes, or
+  adjust the cleanup cadence.
 
 ### Phase 6 Exit Criteria
 
-- Backups and memory optimization run on schedule with logs stored under
+- [ ] Backups and memory optimization run on schedule with logs stored under
   `~/pai/logs/`
-- Documentation reflects the current maintenance workflow and known caveats
+- [x] Documentation reflects the current maintenance workflow and known
+  caveats
 
 ### Phase 6 Verification
 
-- Run `~/pai/backup.sh --dry-run` (add a dry-run flag if absent) to validate
-  archive rotation without overwriting existing files, then inspect
+- [ ] Run `~/pai/backup.sh --dry-run` (add a dry-run flag if absent) to
+  validate archive rotation without overwriting existing files, then inspect
   `~/pai/logs/backup.log`
-- Execute `python ~/pai/optimize_memory.py --once` and confirm the script
+- [ ] Execute `python ~/pai/optimize_memory.py --once` and confirm the script
   writes summaries to `~/pai/archive/memory/` while logging actions
-- Document the cron or systemd entries in `docs/runbooks/maintenance.md` and
-  include the command you used to verify their status (`systemctl list-timers`
-  or `crontab -l`)
+- [x] Document the cron or systemd entries in `docs/runbooks/maintenance.md`
+  and include the command you used to verify their status (`systemctl
+  list-timers` or `crontab -l`)
 
 ## Ongoing Governance
 
-- After each phase, update `docs/initial_plan.md` with the implementation
-  decisions you made so the reference architecture stays authoritative.
-- Before shipping changes, run `npx markdownlint "**/*.md"` from the
+- [ ] After each phase, update `docs/initial_plan.md` with the implementation
+  decisions you made so the reference architecture stays authoritative (file
+  currently archived; decide on a new home or restore it).
+- [x] Before shipping changes, run `npx markdownlint "**/*.md"` from the
   repository root.
-- Track every modification through version control with imperative commit
+- [x] Track every modification through version control with imperative commit
   subjects (`Add scheduler runbook`).
 
 Following these phases keeps the Personal AI Infrastructure iterable while
