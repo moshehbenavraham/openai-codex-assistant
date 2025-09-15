@@ -2,10 +2,14 @@
 
 ## System Philosophy
 
-- **System Over Models**: The orchestration and structure matter more than model intelligence
-- **Text as Universal Interface**: All interactions and data are text/markdown-based
-- **Unix Philosophy**: Build modular tools that do one thing well and can be chained together
-- **Unified Context Management**: Single source of truth for all system knowledge
+- **System Over Models**: The orchestration and structure matter more than
+  model intelligence
+- **Text as Universal Interface**: All interactions and data are
+  text/markdown-based
+- **Unix Philosophy**: Build modular tools that do one thing well and can be
+  chained together
+- **Unified Context Management**: Single source of truth for all system
+  knowledge
 
 ## Implementation Roadmap
 
@@ -104,7 +108,8 @@ order and advance only after your work meets the exit criteria.
 
   ## System Role
   You are PAI, a personal AI infrastructure system powered by GPT-5.
-  Your purpose is to serve as an intelligent orchestration layer for personal productivity and knowledge management.
+  Your purpose is to serve as an intelligent orchestration layer for personal
+  productivity and knowledge management.
 
   ## Core Capabilities
   - Execute tools from ~/pai/tools/ directory
@@ -126,6 +131,7 @@ order and advance only after your work meets the exit criteria.
   ## Tool Registry
   [Auto-populated from ~/pai/tools/]
   ```
+
 - [x] Add a "System State" block that references auto-updated tokens
   (timestamp, active project, last memory update). Mark each token with a
   placeholder such as `<!-- auto:timestamp -->` so automation can discover it.
@@ -185,7 +191,7 @@ order and advance only after your work meets the exit criteria.
   proceeding
 - [x] Cross-check each tool spec against the "Tool Registry" entry you added
   in `docs/tool_registry.md` to guarantee consistency on parameters and safety
-- [ ] Walk through the Verification subsection of one tool and confirm the
+- [x] Walk through the Verification subsection of one tool and confirm the
   sample command matches the Codex CLI workflow you expect to ship in Phase 4
 
 ## Phase 4 - Build the Codex CLI Orchestration Surface
@@ -258,10 +264,11 @@ order and advance only after your work meets the exit criteria.
               ),
           }
 
-      def run_tool(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-          prompt = f"Run tool {tool_name} with parameters: {json.dumps(parameters)}"
-          return self.chat(prompt)
+  def run_tool(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+      prompt = f"Run tool {tool_name} with parameters: {json.dumps(parameters)}"
+      return self.chat(prompt)
   ```
+
   The bridge now shells out to the Codex CLI (`codex exec --json`) and preserves
   a stubbed fallback when the binary is unavailable during development.
 - [x] Inject debug logging from the troubleshooting section
@@ -279,12 +286,13 @@ order and advance only after your work meets the exit criteria.
 
   python3 "${SCRIPT_DIR}/server.py" "$@"
   ```
+
   The wrapper now exports `CODEX_BIN` and honours any existing `PAI_HOME`
   override before invoking Python.
 
 - [x] Redirect Codex rollouts inside the workspace when the sandbox blocks
-  writes to `~/.codex/sessions` (symlink the directory to `pai/codex-sessions/`
-  as documented in the smoke test runbook).
+  writes to `~/.codex/sessions` (symlink the directory to
+  `pai/codex-sessions/` as documented in the smoke test runbook).
 - [x] Document usage (`./pai.sh chat "Summarize my tasks"`).
 - [x] Verify the CLI by running `CODEX_BIN=codex ./pai.sh chat "ping"` and
   confirm you receive a well-formed JSON response or a stubbed placeholder
@@ -402,16 +410,20 @@ maintaining the rigorous documentation standards downstream agents rely on.
 
 ```bash
 # Start your day
-CODEX_BIN=codex ./pai/pai.sh chat "What's my focus today based on active projects?"
+CODEX_BIN=codex ./pai/pai.sh chat \
+  "What's my focus today based on active projects?"
 
 # Set project context
-CODEX_BIN=codex ./pai/pai.sh chat "Switch the active project to website-redesign"
+CODEX_BIN=codex ./pai/pai.sh chat \
+  "Switch the active project to website-redesign"
 
 # Execute complex task
-CODEX_BIN=codex ./pai/pai.sh chat "Analyze the security of our deployment and create a report"
+CODEX_BIN=codex ./pai/pai.sh chat \
+  "Analyze the security of our deployment and create a report"
 
 # Quick tool execution
-CODEX_BIN=codex ./pai/pai.sh run-tool search --params '{"query":"GPT-5 best practices"}'
+CODEX_BIN=codex ./pai/pai.sh run-tool search \
+  --params '{"query":"GPT-5 best practices"}'
 ```
 
 ### Creating Custom Tools
@@ -577,7 +589,8 @@ def summarize_old_memories():
 **Context not loading**: Check file paths and permissions
 **Tools not found**: Verify markdown format and server parsing
 **Memory growing too large**: Implement summarization routine
-**Codex CLI errors**: Re-run `codex login`, confirm sandbox flags, or inspect stderr for command failures
+**Codex CLI errors**: Re-run `codex login`, confirm sandbox flags, or inspect
+stderr for command failures
 
 ### Debug Mode
 
@@ -592,4 +605,5 @@ logger = logging.getLogger(__name__)
 logger.debug(f"Executing tool: {tool_name} with {parameters}")
 ```
 
-This system provides a powerful yet simple personal AI infrastructure that can be extended and customized based on your specific needs.
+This system provides a powerful yet simple personal AI infrastructure that can
+be extended and customized based on your specific needs.

@@ -18,8 +18,9 @@
   workflow.
 - **Updated**: You refactored `pai/server.py` and `pai/pai.sh` to drive the
   Codex CLI bridge (with stub fallbacks), redirected Codex rollouts into
-  `pai/codex-sessions/` to satisfy sandbox policies, and refreshed
-  `docs/runbooks/server_smoke_test.md` to capture the new JSON output.
+  `pai/codex-sessions/` to satisfy sandbox policies, refreshed
+  `docs/runbooks/server_smoke_test.md` to capture the live JSON output, and
+  normalized top-level docs to pass `markdownlint`.
 - **Removed**: You retired `docs/initial_plan.md` now that the implementation
   guide serves as the authoritative architecture record.
 
