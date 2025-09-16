@@ -59,8 +59,9 @@ Use the helper scripts under `scripts/` whenever you need real tool output:
   ./scripts/codex_tool_session.py --tool search --params '{"query":"hello world"}'
   ```
 
-  The script auto-approves the workspace-write prompt, prints each JSONL event,
-  and exits once the tool completes.
+  The script passes `-` to keep Codex's stdin open (avoids the "No prompt
+  provided" error), auto-approves the workspace-write prompt, prints each JSONL
+  event, and exits once the tool completes.
 
 - **Interactive loop:**
 

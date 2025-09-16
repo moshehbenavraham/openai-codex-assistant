@@ -158,7 +158,8 @@ def start_codex(args: argparse.Namespace, transcript_file) -> pexpect.spawn:
             f"Unable to find Codex CLI '{args.codex_bin}'. Install it or set --codex-bin."
         )
 
-    command = [codex_path, "exec", "--sandbox", args.sandbox, "--json"]
+    # Pass '-' so the Codex CLI keeps STDIN open for interactive prompts.
+    command = [codex_path, "exec", "--sandbox", args.sandbox, "--json", "-"]
     env = os.environ.copy()
 
     child = pexpect.spawn(command[0], command[1:], encoding="utf-8", timeout=60, env=env)

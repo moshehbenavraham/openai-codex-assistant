@@ -193,9 +193,10 @@ have to copy/paste commands or troubleshoot the approval prompts:
   ./scripts/codex_tool_session.py --tool search --params '{"query":"example"}'
   ```
 
-  The helper launches Codex in workspace-write mode, auto-approves the prompt,
-  prints the JSONL responses, and exits once the command finishes. Add `--stay`
-  to leave the session open for follow-up runs.
+  The helper passes `-` so Codex keeps stdin open (prevents the "No prompt
+  provided" failure), switches to workspace-write mode, auto-approves the
+  prompt, prints the JSONL responses, and exits once the command finishes. Add
+  `--stay` to leave the session open for follow-up runs.
 
 - Guided interactive loop (tool + JSON prompt each time):
 
@@ -214,8 +215,8 @@ have to copy/paste commands or troubleshoot the approval prompts:
   ```
 
   The wrapper simply prints the sandbox mode and then executes
-  `codex exec --sandbox workspace-write --json`. Use this if you prefer to
-  drive Codex entirely by hand.
+  `codex --sandbox workspace-write`. Use this if you prefer to drive Codex
+  entirely by hand and manage approvals yourself.
 
 If Codex shows an approval prompt that the helper does not capture, type `y`
 yourself and rerun the command. Copy the tool result back into your notes or

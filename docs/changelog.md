@@ -2,6 +2,9 @@
 
 ## 2025-09-16
 
+- **Fixed**: Patched `scripts/codex_tool_session.py` to launch Codex with the
+  `-` stdin sentinel so automated tool runs no longer fail with "No prompt
+  provided" and documented the behavior in `docs/usage_local.md`.
 - **Fixed**: Updated `scripts/codex_interactive.sh` to call the interactive
   Codex CLI (defaulting to `workspace-write`) and documented the new argument
   handling in `docs/usage_local.md` so operators can pass prompts without
