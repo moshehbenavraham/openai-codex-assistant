@@ -50,7 +50,7 @@ class PAIClient:
         self.config = self._load_config()
         self.codex_cfg = self.config.get("codex", {})
         self.codex_bin = os.getenv("CODEX_BIN", self.codex_cfg.get("bin", "codex"))
-        self.approval = os.getenv("PAI_APPROVAL", self.codex_cfg.get("approval", "never"))
+        self.approval = os.getenv("PAI_APPROVAL", self.codex_cfg.get("approval"))
         self.sandbox = os.getenv("PAI_SANDBOX", self.codex_cfg.get("sandbox", "workspace-write"))
         self.model = os.getenv("PAI_MODEL", self.codex_cfg.get("model", "gpt-5-codex"))
         self.profile = os.getenv("PAI_PROFILE", self.codex_cfg.get("profile"))
@@ -65,14 +65,26 @@ class PAIClient:
 
     def _build_base_args(self) -> List[str]:
         args = [self.codex_bin]
-        if self.approval:
-            args.extend(["-a", self.approval])
-        if self.sandbox:
-            args.extend(["-s", self.sandbox])
+
+        approval = (self.approval or "").strip()
+        sandbox = (self.sandbox or "").strip()
+
+        if approval and approval.lower() in {"dangerously-bypass", "dangerously-bypass-approvals-and-sandbox"}:
+            args.append("--dangerously-bypass-approvals-and-sandbox")
+            if sandbox:
+                args.extend(["--sandbox", sandbox])
+        elif approval:
+            args.extend(["--ask-for-approval", approval])
+            if sandbox:
+                args.extend(["--sandbox", sandbox])
+        else:
+            if sandbox:
+                args.extend(["--sandbox", sandbox])
+
         if self.profile:
-            args.extend(["-p", self.profile])
+            args.extend(["--profile", self.profile])
         if self.model:
-            args.extend(["-m", self.model])
+            args.extend(["--model", self.model])
         return args + ["exec", "--json"]
 
     def load_context(self) -> str:
@@ -96,12 +108,20 @@ class PAIClient:
     def _run_codex(self, prompt: str) -> Dict[str, Any]:
         command = self.base_args + [prompt]
         LOGGER.debug("Running Codex command: %s", shlex.join(command))
+        env = os.environ.copy()
+        tmp_override = env.get("PAI_TMPDIR") or env.get("TMPDIR")
+        if not tmp_override:
+            tmp_path = PAI_HOME / "tmp"
+            tmp_path.mkdir(parents=True, exist_ok=True)
+            env["TMPDIR"] = str(tmp_path)
+
         try:
             result = subprocess.run(
                 command,
                 check=False,
                 capture_output=True,
                 text=True,
+                env=env,
             )
         except FileNotFoundError as exc:
             LOGGER.error("Codex CLI not found: %s", exc)

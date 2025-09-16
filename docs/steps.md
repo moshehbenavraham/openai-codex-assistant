@@ -1,80 +1,62 @@
+# Environment Setup Checklist
 
-# Install NVM (Node Version Manager)
+Follow these steps in order to configure a Debian or WSL host for the Personal
+AI Infrastructure.
 
-curl -o- <https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh> | bash
+## Install NVM (Node Version Manager)
 
-# Reload your shell configuration
+1. `curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash`
+2. `source ~/.bashrc`
 
-source ~/.bashrc
+## Install Node.js v22 (latest LTS)
 
-# Install Node.js v22 (latest LTS)
+1. `nvm install 22`
+2. `nvm use 22`
 
-nvm install 22
-nvm use 22
+## Update System Packages
 
-# Update and Upgrade
+1. `sudo apt update`
+2. `sudo apt upgrade`
 
-sudo apt update
+## Install Voice Interface Dependencies
 
-sudo apt upgrade
+1. `sudo apt install espeak-ng portaudio19-dev alsa-utils`
+2. `python3 -m venv .venv` (if not already created)
+3. `.venv/bin/pip install SpeechRecognition pyttsx3 pyaudio`
 
-# Install WSL Utilities
+## Install WSL Utilities (WSL-only)
 
-sudo apt install wslu
+1. `sudo apt install wslu`
 
-# Test Browser
+## Validate Browser Integration (WSL-only)
 
-# This should open in your Windows browser
+1. `wslview https://example.com`
+2. If you see `WSL Interoperability is disabled`, run:
+   - `sudo sh -c 'echo :WSLInterop:M::MZ::/init:PF > /proc/sys/fs/binfmt_misc/register'`
+   - `sudo sh -c 'echo 1 > /proc/sys/fs/binfmt_misc/WSLInterop'`
+3. Confirm interop is enabled: `cat /proc/sys/fs/binfmt_misc/WSLInterop`
 
-wslview <https://example.com>
+## Add Windows System Paths (WSL-only)
 
-# If you get "WSL Interopability is disabled. Please enable it before using WSL."
+1. `echo 'export PATH=$PATH:/mnt/c/Windows/System32:/mnt/c/Windows' >> ~/.bashrc`
+2. `source ~/.bashrc`
+3. `which wslview`
 
-sudo sh -c 'echo :WSLInterop:M::MZ::/init:PF > /proc/sys/fs/binfmt_misc/register'
+## Install Codex CLI
 
-sudo sh -c 'echo 1 > /proc/sys/fs/binfmt_misc/WSLInterop'
+1. `npm install -g @openai/codex`
+2. `which codex`
+3. Run `codex` once to confirm it launches.
+4. Authenticate: `codex login`
 
-# Check if its enabled
+## Install markdownlint CLI
 
-cat /proc/sys/fs/binfmt_misc/WSLInterop
+1. `npm install -g markdownlint-cli`
 
-# Add Windows System32 to PATH
+## Prepare the Personal AI Infrastructure Workspace
 
-echo 'export PATH=$PATH:/mnt/c/Windows/System32:/mnt/c/Windows' >> ~/.bashrc
-source ~/.bashrc
-
-# Check if wslview is installed
-
-which wslview
-
-# Test Browser
-
-# This should open in your Windows browser
-
-wslview <https://example.com>
-
-# Finally Install
-
-npm install -g @openai/codex
-
-which codex
-
-# Let's GO
-
-codex
-
-# Authenticate the Codex CLI before first use
-
-codex login
-
-# Codex recommends installing markdown lint
-
-npm install -g markdownlint-cli
-
-# Personal AI Infrastructure Workspace Notes
-
-# For sandboxed environments, create the PAI workspace inside the project tree:
-
-mkdir -p pai/{tools/custom,projects,archive/memory,logs}
-
-# This keeps the structure portable when home directory writes are restricted.
+1. `mkdir -p pai/{tools/custom,projects,archive/memory,logs}`
+2. Keep the workspace under the project tree when the home directory is
+   sandboxed.
+3. `mkdir -p pai/tests/audio` and populate test fixtures (e.g.,
+   `espeak-ng -w pai/tests/audio/hello.wav "hello from pai"`).

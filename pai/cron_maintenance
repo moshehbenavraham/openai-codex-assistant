@@ -1,0 +1,3 @@
+# PAI maintenance jobs
+0 2 * * * PAI_HOME=/home/xamgibson/projects/codex-assistant/pai /home/xamgibson/projects/codex-assistant/pai/backup.sh >> /home/xamgibson/projects/codex-assistant/pai/logs/backup-cron.log 2>&1
+30 2 * * 0 PAI_HOME=/home/xamgibson/projects/codex-assistant/pai PYTHONPATH=/home/xamgibson/projects/codex-assistant/pai /usr/bin/python3 /home/xamgibson/projects/codex-assistant/pai/optimize_memory.py --once >> /home/xamgibson/projects/codex-assistant/pai/logs/optimize-cron.log 2>&1

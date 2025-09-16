@@ -2,7 +2,7 @@
   "codex": {
     "bin": "codex",
     "model": "gpt-5-codex",
-    "approval": "never",
+    "approval": null,
     "sandbox": "workspace-write",
     "profile": null
   },
