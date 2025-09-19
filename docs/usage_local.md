@@ -1,147 +1,114 @@
-# Local Usage (WSL2 Ubuntu on Windows 10)
+# Local Usage (Codex CLI Chat)
 
-These instructions assume you completed the setup in
-[`docs/deployment_local.md`](docs/deployment_local.md) on a Windows 10 host with
-WSL2 Ubuntu.
+These procedures assume you completed the deployment guide and now operate Atlas
+from a live OpenAI Codex CLI chat session. The chat is the primary control plane;
+legacy scripts are documented in an appendix for rare fallback cases.
 
-## 1. Open a Working Session
+## 1. Start or Resume a Session
 
-```bash
-cd ~/projects/codex-assistant
-source .venv/bin/activate
-export PAI_HOME=$(pwd)/pai
-```
+1. Open WSL and navigate to the project root:
+   ```bash
+   cd ~/projects/codex-assistant
+   ```
+2. Launch the chat:
+   ```bash
+   bunx codex chat
+   ```
+3. Tell Atlas what you need:
+   ```text
+   Atlas, boot up for the day and confirm the workspace path.
+   ```
+4. Atlas responds with repository status, UFC context availability, and any
+   outstanding tasks captured in `.claude` hooks.
 
-Repeat these steps in each new terminal before running commands.
+### Reconnecting Mid-Day
 
-## 2. Quick Health Checks
-
-Run the block below to confirm the scheduler, maintenance, and voice pipeline
-still work. Tool calls will emit a stub error because of the Codex sandbox (see
-section 4).
-
-```bash
-CODEX_BIN=codex ./pai/pai.sh chat "ping"
-PYTHONPATH=pai .venv/bin/python pai/scheduler.py --interval-seconds 2 --cycles 4
-./pai/backup.sh --dry-run
-python3 pai/optimize_memory.py --once
-PYTHONPATH=pai \
-  .venv/bin/python pai/voice.py \
-  --audio-file pai/tests/audio/hello.wav --mute
-```
-
-Check `pai/logs/` afterwards if you want to inspect the details.
-
-## 3. Keep the Scheduler Running
-
-Open a dedicated terminal/tmux pane and run:
-
-```bash
-PYTHONPATH=pai .venv/bin/python pai/scheduler.py
-```
-
-Leave it running; the scheduler writes activity to `pai/logs/scheduler.log`.
-
-## 4. Running Codex Tools (Sandbox Limitation)
-
-The public Codex CLI enforces a read-only sandbox for unattended runs, so
-commands like `./pai/pai.sh run-tool search ...` will return:
+If the CLI drops, relaunch `bunx codex chat` and remind Atlas to reload context:
 
 ```text
-Codex CLI failed with exit code 1; check stderr
+Atlas, reconnect to the earlier session, reload UFC context, and show the last log entries you have.
 ```
 
-Use the helper scripts under `scripts/` whenever you need real tool output:
+## 2. Daily Health Checks (In Chat)
 
-- **Single run:**
+Run each of these by asking Atlas directly:
 
-  ```bash
-  ./scripts/codex_tool_session.py --tool search --params '{"query":"hello world"}'
+- **Scheduler:**
+  ```text
+  Atlas, run the scheduler smoke test with the 2-second interval and show me the log snippet.
+  ```
+- **Backups & Memory:**
+  ```text
+  Atlas, perform a backup dry run, then execute the memory optimizer once and report timestamps.
+  ```
+- **Voice pipeline:**
+  ```text
+  Atlas, replay the prerecorded voice test (muted) and confirm the transcription in pai/logs/voice.log.
+  ```
+- **Tool sanity:**
+  ```text
+  Atlas, call the search tool with a noop query just to prove the link is alive.
   ```
 
-  The script passes `-` to keep Codex's stdin open (avoids the "No prompt
-  provided" error), auto-approves the workspace-write prompt, prints each JSONL
-  event, and exits once the tool completes.
+Atlas prints results inline, attaches relevant log tails, and highlights follow-up
+issues without switching terminals.
 
-- **Interactive loop:**
+## 3. Observability from Chat
 
-  ```bash
-  ./scripts/codex_tool_session.py
-  ```
+Common prompts:
 
-  Enter the tool name and JSON payload when prompted. Special commands:
-  - `!raw` — send a raw Codex command.
-  - `!handoff` — attach your terminal directly to the Codex prompt (Ctrl+] to
-    return).
-  - Add `--transcript tmp/codex.log` when launching to capture results on disk.
+- `Atlas, tail pai/logs/scheduler.log | head -n 20 so I can see the most recent runs.`
+- `Atlas, list archives in pai/archive sorted by newest.`
+- `Atlas, summarize the last five entries in docs/changelog.md.`
 
-- **Raw CLI fallback:**
+Atlas will run the necessary shell commands and paste the output or a concise
+summary (with links back to the files).
 
-  ```bash
-  ./scripts/codex_interactive.sh
-  ```
+## 4. Running Tools and Automation
 
-  This wrapper prints the chosen sandbox mode and then runs
-  `codex --sandbox workspace-write` for you to control manually. Pass a
-  different sandbox (e.g., `read-only`) as the first argument or use `--` to
-  forward a prompt/extra flags directly to the Codex CLI.
+Atlas can invoke tools, Playwright sessions, and custom scripts from the chat.
+Examples:
 
-If Codex shows an approval prompt that the helper cannot recognize, type `y`
-yourself and rerun the command. Copy responses into your notes or task logs,
-then exit the session.
-
-## 5. Maintenance Jobs
-
-Cron entries are already loaded from `pai/cron_maintenance`. Verify them with:
-
-```bash
-crontab -l
+```text
+Atlas, open a Playwright session against the staging dashboard and capture a screenshot.
+Atlas, run bun test in the pai project and summarize failing assertions.
+Atlas, trigger the voice hook via ~/.claude/context/documentation/voicesystem/CLAUDE.md instructions and log the outcome.
 ```
 
-- Backup logs: `pai/logs/backup-cron.log`
-- Memory optimizer logs: `pai/logs/optimize-cron.log`
+When tool runs require approvals, Atlas pauses and tells you what to confirm.
 
-To run a manual dry-run backup or optimizer pass, reuse the commands in
-section 2.
+## 5. Coordinating with UFC and Hooks
 
-## 6. Voice Interface
+- Ask Atlas to list available UFC contexts: `Atlas, show me ls ~/.claude/context`.
+- Request context reloads after editing hooks: `Atlas, reload the user_prompt hook and confirm checksum.`
+- Use the chat to edit commands: `Atlas, open ~/.claude/commands/<name>.md, apply the fix, and run bunx markdownlint to verify.`
 
-- Dependency check:
+## 6. Legacy Appendix (Secondary Path)
 
+Only follow these steps when an interactive chat is impossible (CI, cron, or
+non-interactive environments). Always call out that you are in the legacy flow.
+
+- **Activate the Python environment (if needed):**
   ```bash
-  PYTHONPATH=pai .venv/bin/python pai/voice.py --check-deps
+  source .venv/bin/activate  # assuming uv venv .venv
+  ```
+- **Scheduler smoke test:**
+  ```bash
+  PAI_HOME=$(pwd)/pai PYTHONPATH=pai .venv/bin/python pai/scheduler.py --interval-seconds 2 --cycles 4
+  ```
+- **Backup + optimizer:**
+  ```bash
+  PAI_HOME=$(pwd)/pai ./pai/backup.sh --dry-run
+  PAI_HOME=$(pwd)/pai python3 pai/optimize_memory.py --once
+  ```
+- **Voice sample:**
+  ```bash
+  PAI_HOME=$(pwd)/pai PYTHONPATH=pai .venv/bin/python pai/voice.py --audio-file pai/tests/audio/hello.wav --mute
+  ```
+- **Codex tool helper:**
+  ```bash
+  ./scripts/codex_tool_session.py --tool search --params '{"query":"status"}'
   ```
 
-- Automated smoke test (no microphone required):
-
-  ```bash
-  PYTHONPATH=pai \
-    .venv/bin/python pai/voice.py \
-    --audio-file pai/tests/audio/hello.wav --mute
-  ```
-
-- Live mic: drop the `--audio-file` flag and speak after `Listening for voice input`.
-  Logs accumulate in `pai/logs/voice.log`.
-
-## 7. Logs and Runbooks
-
-| Purpose            | Location                     |
-|--------------------|------------------------------|
-| Scheduler logs     | `pai/logs/scheduler.log`     |
-| Backup logs        | `pai/logs/backup.log`        |
-| Memory optimizer   | `pai/logs/optimize_memory.log`|
-| Voice interactions | `pai/logs/voice.log`         |
-
-Detailed procedures live in `docs/runbooks/`.
-
-## 8. Common Issues
-
-- **Codex stub output**: Use the interactive CLI flow described above.
-- **Audio input unavailable**: WSL has no microphone access; continue using the
-  prerecorded sample or configure ALSA/PulseAudio passthrough.
-- **Text-to-speech errors**: Reinstall `pyttsx3`/`pyaudio` inside `.venv` and
-  check `pai/logs/voice.log`.
-- **Docs formatting**: Run `npx markdownlint "**/*.md"` after editing markdown.
-
-With these habits, you can operate the Personal AI Infrastructure locally while
-working around the current Codex sandbox limitations.
+Return to the chat workflow when finished and document the detour in the
+changelog.

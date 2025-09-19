@@ -1,91 +1,54 @@
-# Scheduling Runbook
+# Scheduling Runbook (In-Chat)
 
-## Prerequisites
+Atlas runs the scheduler checks from inside the Codex CLI chat. Use the prompts
+below as your operational checklist. Legacy shell commands remain available at
+the end for detached environments.
 
-- Install the `schedule` Python package: `pip install schedule`
-- Export `PAI_HOME` to point at the `pai/` directory if it lives outside `~/pai`
-- Confirm the Codex CLI is authenticated (`codex login`) and accessible via
-  `CODEX_BIN` or the default `codex` binary
+## Primary In-Chat Smoke Test
 
-## Short-Interval Smoke Test
-
-1. Run the scheduler with the built-in test overrides so you do not edit the
-   production cadence:
-
-   ```bash
-   PAI_HOME=$(pwd)/pai PYTHONPATH=pai .venv/bin/python pai/scheduler.py \
-     --interval-seconds 2 --cycles 4
-   ```
-
-   - `--interval-seconds 2` schedules both jobs every two seconds.
-   - `--cycles 4` exits after four job completions (two full cycles).
-   - Use `python3` instead of `.venv/bin/python` if you have globally installed
-     the `schedule` package.
-2. Wait for the console message `Reached 4 completed jobs; shutting down`.
-3. Inspect `pai/logs/scheduler.log` for matching entries, for example:
-
+1. Ask Atlas to verify prerequisites:
    ```text
-   2025-09-16 07:50:40,628 INFO __main__ Job morning_briefing completed
-   2025-09-16 07:52:29,011 INFO __main__ Reached 4 completed jobs; shutting down
+   Atlas, confirm the scheduler script exists and show the first 10 lines.
    ```
+2. Trigger the short-interval test:
+   ```text
+   Atlas, run the scheduler with --interval-seconds 2 and --cycles 4, then share the stdout and the new lines from pai/logs/scheduler.log.
+   ```
+3. Confirm Atlas reports `Reached 4 completed jobs; shutting down` (or similar)
+   and posts the corresponding log excerpt.
+4. When finished, remind Atlas to revert to the normal cadence if overrides were
+   applied elsewhere.
 
-4. Remove the override flags to restore the standard schedule once testing is
-   complete.
+## Production Operation from Chat
 
-### Latest Verification Snapshot (2025-09-16)
-
-- Command:
-
-  ```bash
-  PAI_HOME=$(pwd)/pai PYTHONPATH=pai .venv/bin/python pai/scheduler.py \
-    --interval-seconds 2 --cycles 4
-  ```
-
-- Log extract:
-
+- Start the long-running scheduler:
   ```text
-  2025-09-16 07:52:29,011 INFO __main__ Reached 4 completed jobs; shutting down
+  Atlas, launch the scheduler for production cadence and keep me posted if it exits.
+  ```
+- Atlas should mention which process manager (tmux/systemd) it uses or suggest
+  options if none are configured.
+- Request periodic status:
+  ```text
+  Atlas, every morning at 09:00, summarize the last scheduler run and append it to docs/changelog.md.
   ```
 
-## Production Launch
+## Observability
 
-1. Start the scheduler without override flags:
+- `Atlas, tail pai/logs/scheduler.log | tail -n 20.`
+- `Atlas, check for cron overrides touching scheduler.py.`
+- `Atlas, list running processes filtering for scheduler.py.`
 
-   ```bash
-   PAI_HOME=$(pwd)/pai PYTHONPATH=pai .venv/bin/python pai/scheduler.py
-   ```
+Atlas returns log snippets or process tables directly in chat so you do not need
+an extra terminal.
 
-2. Use a process manager (tmux, systemd service, or supervisord) to keep the
-   process running after logout.
-3. Confirm `PAI_DEBUG=1` logs tool executions without leaking secrets.
-4. Document the launch in `docs/initial_plan.md` (or its successor) so other
-   operators know the scheduler is active.
+## Legacy Commands (Fallback Only)
 
-## Cron-Style Alternative
+If you must run outside the chat (CI/cron), the canonical commands remain:
 
-Some environments disallow persistent daemons. Use cron to trigger batches as
-needed:
+```bash
+PAI_HOME=$(pwd)/pai PYTHONPATH=pai .venv/bin/python pai/scheduler.py --interval-seconds 2 --cycles 4
+PAI_HOME=$(pwd)/pai PYTHONPATH=pai .venv/bin/python pai/scheduler.py
+```
 
-1. Edit the user crontab with `crontab -e`.
-2. Add entries that run the scheduler for a fixed number of cycles, e.g.:
-
-   ```cron
-   # Fire the morning briefing and project summary on the hour
-   0 * * * * PAI_HOME=/home/user/projects/codex-assistant/pai \
-     PYTHONPATH=/home/user/projects/codex-assistant/pai \
-     /home/user/projects/codex-assistant/.venv/bin/python \
-     /home/user/projects/codex-assistant/pai/scheduler.py \
-     --interval-seconds 5 --cycles 2 >> \
-     /home/user/projects/codex-assistant/pai/logs/scheduler-cron.log 2>&1
-   ```
-
-   Adjust the binary path if you are not using the project virtual environment.
-   The five-second interval lets both jobs run quickly before cron exits.
-3. Confirm registration with `crontab -l | grep scheduler.py`.
-4. Review the cron log and `pai/logs/scheduler.log` after the first run.
-
-## Temporary Disable
-
-1. Stop the process manager or terminate the `scheduler.py` process
-2. Add a note to `docs/runbooks/scheduling.md` with the reason for suspension
-3. Resume the scheduler once maintenance or downtime complete
+Remember to note the fallback use in `docs/changelog.md` and return to the
+in-chat workflow afterward.

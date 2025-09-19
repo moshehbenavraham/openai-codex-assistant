@@ -1,49 +1,43 @@
-# Server Smoke Test
+# Server Smoke Test (In-Chat)
 
-## Environment
+Use the Codex CLI chat with Atlas to validate CLI connectivity and sandbox
+behavior.
 
-- `PAI_HOME=$(pwd)/pai`
-- `PYTHON_BIN=python3`
-- `CODEX_BIN=codex`
-- Codex CLI logged in (`codex login`) and configured for the desired model
-- When running under the Codex CLI sandbox, point rollouts inside the workspace
-  so Landlock can write session logs:
+## Primary Flow
 
-  ```bash
-  mkdir -p pai/codex-sessions
-  mv ~/.codex/sessions ~/.codex/sessions.bak
-  ln -s $(pwd)/pai/codex-sessions ~/.codex/sessions
-  cp -R ~/.codex/sessions.bak/* pai/codex-sessions/
-  ```
+1. Set the stage:
+   ```text
+   Atlas, confirm codex is on the PATH and show its version.
+   ```
+2. Run the ping:
+   ```text
+   Atlas, call the chat endpoint with a "ping" prompt and share the JSON response.
+   ```
+3. Atlas pastes the streamed output. A healthy response mirrors:
+   ```json
+   {
+     "ok": true,
+     "data": {
+       "last": "No active project is currently set. Ready for your next instruction."
+     }
+   }
+   ```
+4. If sandbox approvals are needed, Atlas pauses and asks for confirmation before
+   rerunning.
 
-## CLI Verification
+## Additional Checks
+
+- `Atlas, list ~/.codex/sessions to confirm transcripts are being saved.`
+- `Atlas, ensure pai/codex-sessions exists and point the Codex CLI there if we are in sandbox mode.`
+- `Atlas, verify workspace-write access by touching tmp/codex-probe.txt and then deleting it.`
+
+## Legacy Commands (Fallback Only)
+
+Detached validation still works with:
 
 ```bash
 CODEX_BIN=codex ./pai/pai.sh chat "ping"
 ```
 
-Sample output when Codex responds successfully:
-
-```json
-{
-  "ok": true,
-  "data": {
-    "last": "No active project is currently set. Ready for your next instruction.",
-    "choices": [
-      {
-        "message": {
-          "role": "assistant",
-          "content": "No active project is currently set. Ready for your next instruction."
-        }
-      }
-    ]
-  }
-}
-```
-
-If your environment blocks outbound requests you will instead see
-`ok: false` and an `error` field describing the network failure. In that case,
-restore connectivity (or rerun outside the sandbox) and retry. For verbose
-traces, run `PAI_DEBUG=1 CODEX_BIN=codex ./pai/pai.sh chat "ping"` and watch
-the debug log lines emitted before the JSON payload. The rollouts and CLI logs
-land in `pai/codex-sessions/` for easier inspection inside the workspace.
+Document any fallback usage in `docs/changelog.md` and return to the in-chat
+workflow afterward.

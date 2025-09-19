@@ -1,42 +1,52 @@
 # Tool Registry
 
+Atlas can invoke tools directly from the Codex CLI chat. Use the prompts below
+for the primary workflow; fallback shell commands remain for legacy automation.
+
 ## search
 
-- **Description:** Execute text searches across configured data sources
-  (internet or internal knowledge bases).
-- **Parameters:** `query` (string, required), `max_results` (integer ≥ 1,
-  default 5).
-- **Expected Latency:** 1–3 seconds with a warm cache.
-- **Safety:** Redact sensitive terms before logging; respect rate limits.
-- **Verification:**
-
+- **What it does:** Query configured data sources for text matches.
+- **Ask Atlas:**
+  ```text
+  Atlas, run the search tool for "deployment status" with the default settings and summarize the hits.
+  ```
+- **Parameters:** `query` (required string), `max_results` (integer, default 5).
+- **Latency:** 1–3 seconds in a warm session.
+- **Safety:** Avoid logging sensitive terms; Atlas will redact before persisting.
+- **Legacy verification (optional):**
   ```bash
   CODEX_BIN=codex ./pai/pai.sh run-tool search --params '{"query":"status"}'
   ```
 
 ## create_image
 
-- **Description:** Generate images from prompts via the configured diffusion
-  model.
-- **Parameters:** `prompt` (string, required), `size` (string from
-  `256x256|512x512|1024x1024`, default `512x512`).
-- **Expected Latency:** 5–15 seconds; longer for higher resolutions.
-- **Safety:** Filter disallowed prompts and avoid persisting temporary URLs.
-- **Verification:**
-
+- **What it does:** Generate an image from a text prompt via the configured diffusion model.
+- **Ask Atlas:**
+  ```text
+  Atlas, generate an image for "atlas robot blueprint" at 512 by 512 and share the link.
+  ```
+- **Parameters:** `prompt` (string, required), `size` (`256x256|512x512|1024x1024`, default `512x512`).
+- **Latency:** 5–15 seconds.
+- **Safety:** Confirm prompts comply with content policy and avoid leaking temporary URLs.
+- **Legacy verification:**
   ```bash
   CODEX_BIN=codex ./pai/pai.sh run-tool create_image --params '{"prompt":"blueprint"}'
   ```
 
 ## analyze
 
-- **Description:** Produce structured analyses over text, code, or documents.
-- **Parameters:** `subject` (string, required), `focus` (string, optional),
-  `include_recommendations` (boolean, default `true`).
-- **Expected Latency:** 2–6 seconds for standard depth.
-- **Safety:** Sanitize referenced file paths and redact secrets in outputs.
-- **Verification:**
-
+- **What it does:** Produce structured analyses over text, code, or documentation.
+- **Ask Atlas:**
+  ```text
+  Atlas, analyze docs/usage_local.md with focus on gaps in the in-chat migration notes and include recommendations.
+  ```
+- **Parameters:** `subject` (string, required), `focus` (optional string), `include_recommendations` (boolean, default `true`).
+- **Latency:** 2–6 seconds for standard depth.
+- **Safety:** Sanitize file paths and suppress secrets before sharing results.
+- **Legacy verification:**
   ```bash
   CODEX_BIN=codex ./pai/pai.sh run-tool analyze --params '{"subject":"release notes"}'
   ```
+
+Atlas surfaces tool output in the chat transcript. Use the legacy commands only
+when running detached workflows and note the choice in `docs/changelog.md`.

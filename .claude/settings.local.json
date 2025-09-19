@@ -3,7 +3,9 @@
     "allow": [
       "Bash(python3:*)",
       "Bash(./pai/pai.sh:*)",
-      "Bash(./pai.sh:*)"
+      "Bash(./pai.sh:*)",
+      "Bash(xxd:*)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "ask": []

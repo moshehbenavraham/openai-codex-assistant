@@ -1,5 +1,18 @@
 # Changelog
 
+## 2025-09-19
+
+- **Shifted primary workflow** to the in-chat OpenAI Codex CLI experience and
+  demoted the legacy script harness to secondary status across README, deployment,
+  usage, and runbooks.
+- **Standardized tooling** on Bun for CLI installs and `uv` for legacy Python
+  dependencies, updating `docs/steps.md`, `docs/deployment_local.md`, and
+  `docs/usage_local.md` accordingly.
+- **Refreshed runbooks and registry** so operators ask Atlas to execute tasks
+  from chat first, while preserving legacy fallback commands for detached runs.
+- **Captured plan** in `UPDATE.md` and added an operational reminder in
+  `AGENTS.md` about the new in-chat default mode.
+
 ## 2025-09-16
 
 - **Fixed**: Patched `scripts/codex_tool_session.py` to launch Codex with the

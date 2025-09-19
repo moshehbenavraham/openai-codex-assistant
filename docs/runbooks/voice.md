@@ -1,82 +1,55 @@
-# Voice Runbook
+# Voice Runbook (In-Chat)
 
-## Prerequisites
+Atlas can run the voice pipeline end-to-end from the Codex CLI chat. Use these
+prompts to validate dependencies and smoke tests.
 
-- Activate the project virtual environment: `source .venv/bin/activate`.
-- Install Python dependencies: `pip install SpeechRecognition pyttsx3`.
-- Install system TTS backend (`espeak-ng`) and microphone drivers
-  (`portaudio19-dev` provides PyAudio bindings).
-- Export `PAI_HOME=$(pwd)/pai` if the workspace lives outside `~/pai`.
+## Dependency Check via Chat
 
-## Dependency Check
-
-1. Verify Python packages and surface missing modules:
-
-   ```bash
-   PAI_HOME=$(pwd)/pai PYTHONPATH=pai .venv/bin/python pai/voice.py --check-deps
-   ```
-
-2. Sample output after installing `SpeechRecognition` and `pyttsx3`:
-
+1. Request verification:
    ```text
-   speech_recognition: installed
-   pyttsx3: installed
-   pyaudio: installed
+   Atlas, run pai/voice.py --check-deps and show the formatted output.
    ```
+2. Atlas lists the status of `speech_recognition`, `pyttsx3`, and `pyaudio`.
+   - If packages are missing in a legacy environment, Atlas will suggest the
+     `uv pip install` commands needed to restore them.
 
-3. If any dependency is missing, install it inside the virtual environment and
-   rerun the check.
+## Prerecorded Smoke Test
 
-## First Interactive Test
-
-1. Run the voice interface from the project root:
-
-   ```bash
-   PAI_HOME=$(pwd)/pai PYTHONPATH=pai .venv/bin/python pai/voice.py
-   ```
-
-2. Expected failure without system TTS backend:
-
+1. Execute the sample:
    ```text
-   RuntimeError: This means you probably do not have eSpeak or eSpeak-ng installed!
+   Atlas, run pai/voice.py with --audio-file pai/tests/audio/hello.wav --mute and share the log lines.
    ```
-
-3. Install `espeak-ng` (and `ffmpeg` if you want alternative voices), then
-   rerun the command.
-4. For automated tests or sandbox verification, pass a prerecorded sample and
-   mute playback:
-
-   ```bash
-   PAI_HOME=$(pwd)/pai PYTHONPATH=pai .venv/bin/python pai/voice.py \
-     --audio-file pai/tests/audio/hello.wav --mute
-   ```
-
-   Sample log output (`pai/logs/voice.log`):
-
+2. Atlas should confirm the transcription and note that playback is muted.
+3. Ask for the log tail:
    ```text
-   2025-09-16 08:54:48,658 INFO __main__ Loading audio file: pai/tests/audio/hello.wav
-   2025-09-16 08:54:53,195 INFO __main__ Transcribed input: hello from PI
-   2025-09-16 08:55:08,169 INFO __main__ Mute enabled; skipping audio playback
+   Atlas, tail -n 5 pai/logs/voice.log.
    ```
 
-5. When hardware is available, speak a short prompt after the "Listening for
-   voice input" log line. Successful runs print interaction messages to the
-   console, write to `pai/logs/voice.log`, and play synthesized audio via
-   `pyttsx3`.
-6. Example failure without a default microphone:
+## Live Microphone Test
 
-   ```text
-   Audio input unavailable: No Default Input Device Available
-   ```
+When hardware is available:
 
-## Troubleshooting
+```text
+Atlas, start pai/voice.py in live mode so I can speak a short prompt, then report the transcript.
+```
 
-- If the script exits with `Could not understand audio input`, verify your
-  microphone defaults and background noise levels.
-- `OSError: No Default Input Device Available` indicates missing ALSA or
-  PulseAudio configuration. Confirm the device works via `arecord -l`.
-- `ModuleNotFoundError: No module named 'pyaudio'` means you still need to
-  install `portaudio19-dev` followed by `pip install pyaudio` within the
-  virtual environment.
-- After installing system packages, rebuild the virtual environment or
-  reinstall affected wheels (`pip install --force-reinstall pyttsx3 pyaudio`).
+Atlas will warn if ALSA/PulseAudio devices are unavailable and surface the exact
+error message.
+
+## Troubleshooting Prompts
+
+- `Atlas, run arecord -l so we can confirm the microphone exists.`
+- `Atlas, reinstall pyaudio with uv pip if it is missing and document the command.`
+- `Atlas, check pai/logs/voice.log for recent ERROR entries.`
+
+## Legacy Commands (Fallback Only)
+
+For detached environments you may run:
+
+```bash
+PAI_HOME=$(pwd)/pai PYTHONPATH=pai .venv/bin/python pai/voice.py --check-deps
+PAI_HOME=$(pwd)/pai PYTHONPATH=pai .venv/bin/python pai/voice.py --audio-file pai/tests/audio/hello.wav --mute
+```
+
+Whenever you use the fallback path, mention it in the changelog and revert to the
+in-chat workflow afterward.
