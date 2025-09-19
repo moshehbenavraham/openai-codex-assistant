@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "bunx",
+      "args": [
+        "@playwright/mcp@latest",
+        "--browser",
+        "chrome",
+        "--extension"
+      ],
+      "description": "Browser automation and testing via Playwright MCP bridge using Chrome profile"
+    }
+  }
+}
