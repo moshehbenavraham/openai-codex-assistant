@@ -1,0 +1,215 @@
+#!/usr/bin/env python3
+"""Local tool dispatcher for Personal AI Infrastructure."""
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, Iterable, List
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_MAX_RESULTS = 5
+EXCLUDED_DIRS = {
+    ".git",
+    "node_modules",
+    "__pycache__",
+    "pai/tmp",
+    "pai/archive",
+}
+TEXTUAL_SUFFIXES = {
+    ".md",
+    ".txt",
+    ".py",
+    ".sh",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".ini",
+    ".cfg",
+}
+
+
+@dataclass
+class SearchResult:
+    title: str
+    snippet: str
+    path: str
+    line: int
+
+    def to_payload(self) -> Dict[str, Any]:
+        return {
+            "title": self.title,
+            "snippet": self.snippet.strip(),
+            "url": None,
+            "published_at": None,
+            "path": self.path,
+            "line": self.line,
+        }
+
+
+def error(message: str, exit_code: int = 1) -> None:
+    sys.stderr.write(f"error: {message}\n")
+    sys.exit(exit_code)
+
+
+def load_params(raw: str | None) -> Dict[str, Any]:
+    if not raw:
+        return {}
+    candidate = raw.strip()
+    if candidate.startswith("@"):
+        params_path = (REPO_ROOT / candidate[1:]).resolve()
+        if not params_path.is_file():
+            error(f"parameter file not found: {params_path}")
+        candidate = params_path.read_text(encoding="utf-8")
+    try:
+        return json.loads(candidate) if candidate else {}
+    except json.JSONDecodeError as exc:
+        error(f"invalid JSON parameters: {exc}")
+        raise  # for type checkers
+
+
+def find_with_ripgrep(query: str, limit: int) -> Iterable[SearchResult]:
+    command = [
+        "rg",
+        "--no-heading",
+        "--with-filename",
+        "--line-number",
+        "--max-count",
+        str(max(limit, 1)),
+        query,
+        ".",
+    ]
+    try:
+        proc = subprocess.run(
+            command,
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return []
+
+    if proc.returncode not in (0, 1):
+        error(f"ripgrep failed with exit code {proc.returncode}: {proc.stderr.strip()}")
+
+    results: List[SearchResult] = []
+    for line in proc.stdout.splitlines():
+        if not line:
+            continue
+        try:
+            path_str, line_no, snippet = line.split(":", 2)
+        except ValueError:
+            continue
+        rel_path = os.path.relpath(Path(path_str), REPO_ROOT)
+        try:
+            line_int = int(line_no)
+        except ValueError:
+            line_int = 0
+        results.append(
+            SearchResult(
+                title=rel_path,
+                snippet=snippet,
+                path=rel_path,
+                line=line_int,
+            )
+        )
+        if len(results) >= limit:
+            break
+    return results
+
+
+def fallback_search(query: str, limit: int) -> Iterable[SearchResult]:
+    results: List[SearchResult] = []
+    lowered = query.lower()
+
+    for root, dirs, files in os.walk(REPO_ROOT):
+        rel_root = os.path.relpath(Path(root), REPO_ROOT)
+        if rel_root == ".":
+            rel_root = ""
+
+        skip_root = False
+        for excluded in EXCLUDED_DIRS:
+            if rel_root == excluded or rel_root.startswith(f"{excluded}{os.sep}"):
+                skip_root = True
+                break
+        if skip_root:
+            dirs[:] = []
+            continue
+
+        for name in files:
+            path = Path(root) / name
+            relative = os.path.relpath(path, REPO_ROOT)
+            suffix = path.suffix.lower()
+            if suffix and suffix not in TEXTUAL_SUFFIXES:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            for idx, line in enumerate(text.splitlines(), start=1):
+                if lowered in line.lower():
+                    results.append(
+                        SearchResult(
+                            title=relative,
+                            snippet=line,
+                            path=relative,
+                            line=idx,
+                        )
+                    )
+                    break
+            if len(results) >= limit:
+                return results
+
+    return results
+
+
+def handle_search(params: Dict[str, Any]) -> None:
+    query = params.get("query")
+    if not isinstance(query, str) or not query.strip():
+        error("search tool requires a non-empty string query")
+    raw_limit = params.get("max_results", DEFAULT_MAX_RESULTS)
+    try:
+        limit = int(raw_limit)
+    except (TypeError, ValueError):
+        error("max_results must be an integer")
+    if limit <= 0:
+        limit = DEFAULT_MAX_RESULTS
+
+    results = list(find_with_ripgrep(query, limit))
+    if not results:
+        results = list(fallback_search(query, limit))
+
+    payload = {
+        "results": [result.to_payload() for result in results],
+        "provider": "local-repo-search",
+    }
+    print(json.dumps(payload, indent=2))
+
+
+def dispatch(tool_name: str, params: Dict[str, Any]) -> None:
+    if tool_name == "search":
+        handle_search(params)
+    else:
+        error(f"unsupported tool: {tool_name}")
+
+
+def main(argv: List[str]) -> None:
+    if len(argv) < 2 or argv[1] in {"-h", "--help"}:
+        print("usage: tool <name> '{\"param\": value}'", file=sys.stderr)
+        sys.exit(2)
+    name = argv[1]
+    raw_params = argv[2] if len(argv) > 2 else None
+    params = load_params(raw_params)
+    dispatch(name, params)
+
+
+if __name__ == "__main__":
+    main(sys.argv)

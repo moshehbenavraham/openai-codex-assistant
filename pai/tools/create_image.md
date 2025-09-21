@@ -36,11 +36,10 @@ Generate an image from a natural-language prompt using the configured model.
 
 1. Confirm the Codex CLI can reach your image backend or mock and that
    authentication succeeded (`codex login`).
-2. Issue the following command:
+2. Issue the following command directly from the chat session:
 
    ```bash
-   CODEX_BIN=codex ./pai/pai.sh run-tool create_image \
-     --params '{"prompt":"minimalist app icon"}'
+   ./pai/pai.sh run-tool create_image --params '{"prompt":"minimalist app icon"}'
    ```
 
 3. Confirm the response includes `image_url`, `revised_prompt`, and

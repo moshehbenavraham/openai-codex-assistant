@@ -35,11 +35,10 @@ guidance.
 ## Verification
 
 1. Ensure Codex CLI authentication succeeds (`codex login`).
-2. Execute the request via the CLI wrapper:
+2. Execute the request directly from chat:
 
    ```bash
-   CODEX_BIN=codex ./pai/pai.sh run-tool analyze \
-     --params '{"subject":"Runbook draft","analysis_type":"general"}'
+   ./pai/pai.sh run-tool analyze --params '{"subject":"Runbook draft","analysis_type":"general"}'
    ```
 
 3. Inspect the JSON response to confirm `analysis` and `recommendations`

@@ -109,6 +109,9 @@ class PAIClient:
         command = self.base_args + [prompt]
         LOGGER.debug("Running Codex command: %s", shlex.join(command))
         env = os.environ.copy()
+        bin_path = PAI_HOME / "bin"
+        if bin_path.exists():
+            env["PATH"] = f"{bin_path}{os.pathsep}{env.get('PATH', '')}"
         tmp_override = env.get("PAI_TMPDIR") or env.get("TMPDIR")
         if not tmp_override:
             tmp_path = PAI_HOME / "tmp"

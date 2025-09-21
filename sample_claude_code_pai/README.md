@@ -1,5 +1,8 @@
 <div align="center">
 
+
+# THIS IS A DIRECT COPY OF DANIEL MIESSLER'S REPO!!!!  It's in this repo for reference.
+
 # `PAI` - Personal AI Infrastructure
 
 ### <code>PAI</code> is an open-source personal AI infrastructure for orchestrating your life and work

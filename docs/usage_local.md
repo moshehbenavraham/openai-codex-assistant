@@ -75,6 +75,14 @@ Atlas, run bun test in the pai project and summarize failing assertions.
 Atlas, trigger the voice hook via ~/.claude/context/documentation/voicesystem/CLAUDE.md instructions and log the outcome.
 ```
 
+When you need a quick tool sanity check, call the local dispatcher directly:
+
+```bash
+./pai/bin/tool search '{"query":"status"}'
+```
+
+Reserve `CODEX_BIN=codex ./pai/pai.sh run-tool …` for non-chat automation.
+
 When tool runs require approvals, Atlas pauses and tells you what to confirm.
 
 ## 5. Coordinating with UFC and Hooks
@@ -105,7 +113,7 @@ non-interactive environments). Always call out that you are in the legacy flow.
   ```bash
   PAI_HOME=$(pwd)/pai PYTHONPATH=pai .venv/bin/python pai/voice.py --audio-file pai/tests/audio/hello.wav --mute
   ```
-- **Codex tool helper:**
+- **Codex tool helper (legacy):**
   ```bash
   ./scripts/codex_tool_session.py --tool search --params '{"query":"status"}'
   ```

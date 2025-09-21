@@ -105,6 +105,7 @@ Suggested order:
    ```text
    Atlas, call the search tool with a noop query just to prove the CLI wiring.
    ```
+   Atlas should run `./pai/bin/tool search '{"query":"status"}'` directly from chat and show the JSON payload.
 
 Atlas can open Playwright sessions, capture transcripts, and archive results
 without you ever leaving the chat prompt. If a command needs interactive
@@ -132,7 +133,7 @@ machines without the Codex CLI chat available).
 3. **Scripted smoke tests:**
    ```bash
    CODEX_BIN=codex ./pai/pai.sh chat "ping"
-   CODEX_BIN=codex ./pai/pai.sh run-tool search --params '{"query":"status"}'
+   ./pai/bin/tool search '{"query":"status"}'
    PYTHONPATH=pai .venv/bin/python pai/scheduler.py --interval-seconds 2 --cycles 4
    ./pai/backup.sh --dry-run
    python3 pai/optimize_memory.py --once

@@ -32,11 +32,10 @@ Query a search provider for recent information and return concise summaries.
 
 1. Ensure the Codex CLI is authenticated (`codex login`) and
    `docs/runbooks/server_smoke_test.md` passes.
-2. Invoke the tool through the CLI wrapper:
+2. Run the in-chat dispatcher:
 
    ```bash
-   CODEX_BIN=codex ./pai/pai.sh run-tool search \
-     --params '{"query":"latest autonomous agent frameworks"}'
+   ./pai/bin/tool search '{"query":"latest autonomous agent frameworks"}'
    ```
 
 3. Expect the JSON response to include a `results` array with up to
